@@ -2,16 +2,13 @@
 <html lang="es">
 <head>
   <meta charset="utf-8" />
-  <title>SnchzBroz Stream Backdrop</title>
+  <title>SnchzBroz Pantalla</title>
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <meta name="theme-color" content="#0b0f1a" />
+  <meta name="theme-color" content="#8000ff" />
 
-  <!-- Manifest PWA -->
+  <!-- PWA -->
   <link rel="manifest" href="manifest.json">
-
-  <!-- Favicon (sube estos archivos al repo) -->
-  <link rel="icon" type="image/png" href="favicon.png" />
-  <link rel="icon" type="image/x-icon" href="favicon.ico" />
+  <link rel="icon" type="image/png" href="icons/icon-192.png" />
 
   <!-- Roboto (opcional) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -34,10 +31,10 @@
     .like-fountain{position:absolute;inset:0;z-index:50;pointer-events:none}
     .like-fountain iframe{width:100%;height:100%;border:0}
 
-    /* Tarjetas superiores - fila */
+    /* Tarjetas superiores */
     .top-row{position:absolute;top:24px;left:24px;right:24px;display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
 
-    /* Marco neón (cada tarjeta con su glow propio) */
+    /* Marco neón (glow individual por tarjeta) */
     .neon{position:relative;border-radius:16px;overflow:hidden;isolation:isolate;}
     .neon::before{
       content:"";position:absolute;inset:-6px;border-radius:inherit;filter:blur(18px);opacity:.9;z-index:0;pointer-events:none;
@@ -211,13 +208,6 @@
     rotateBadge(document.getElementById('badge-follower'), FOLLOWER_MESSAGES);
     rotateBadge(document.getElementById('badge-gift'), GIFT_MESSAGES);
     rotateBadge(document.getElementById('badge-sub'), SUB_MESSAGES);
-
-    // Registrar service worker para PWA (si es soportado)
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js').catch(()=>{});
-      });
-    }
   </script>
 </body>
 </html>
