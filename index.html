@@ -1,278 +1,223 @@
-import React, { useEffect, useMemo, useState, memo } from "react";
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title>SnchzBroz Stream Backdrop</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#0b0f1a" />
 
-// === Assets ===
-const ASSETS = {
-  backgroundVideo: "https://raw.githubusercontent.com/SnchzBroz/SnchzBroz/main/Nuevo%20Azul.mp4",
-  logo: "https://raw.githubusercontent.com/SnchzBroz/SnchzBroz/main/Nuevo%20Logo.png",
-  poster: "https://raw.githubusercontent.com/SnchzBroz/SnchzBroz/main/Nuevo%20Logo.png",
-};
+  <!-- Manifest PWA -->
+  <link rel="manifest" href="manifest.json">
 
-// === Widgets ===
-const WIDGETS = {
-  likeFountain: "https://tikfinity.zerody.one/widget/likefountain?cid=615689",
-  actions: "https://tikfinity.zerody.one/widget/myactions?cid=615689&screen=1",
-  lastFollower: "https://tikfinity.zerody.one/widget/lastx?cid=615689&x=follower",
-  lastGifter: "https://tikfinity.zerody.one/widget/lastx?cid=615689&x=gifter",
-  lastSubscriber: "https://tikfinity.zerody.one/widget/lastx?cid=615689&x=subscriber",
-};
+  <!-- Favicon (sube estos archivos al repo) -->
+  <link rel="icon" type="image/png" href="favicon.png" />
+  <link rel="icon" type="image/x-icon" href="favicon.ico" />
 
-// === Mensajes rotativos para tarjetas superiores ===
-const FOLLOWER_MESSAGES = [
-  "¡El nuevo Bro! 🤩",
-  "¡Nuevo Bro en la casa! 🎉",
-  "¡Gracias por unirte al desmadre! 🙌",
-  "¡Bienvenid@ al team, Bro! 😎",
-  "¡Un Bro más en el canal! 🥳",
-  "¡Ahora somos más Bros! 🔥",
-  "¡Nuevo Bro! ¡Qué locura! 🤯",
-  "¡Un Bro más a la cuenta! ✅",
-  "¡Ahora eres un Bro de élite! 😎",
-  "¡Un nuevo Bro ha aparecido! 👾",
-  "¡Ahora si somos más fuertes! 💪",
-];
+  <!-- Roboto (opcional) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@700;900&display=swap" rel="stylesheet">
 
-const GIFT_MESSAGES = [
-  "¡Gracias por tu Oro! 🎁",
-  "¡Oro en la casa! ¡Gracias por el apoyo! 🙏",
-  "¡Qué buen regalo, muchas gracias! 🙏",
-  "¡Me has dejado sin palabras! ¡Gracias! 💖",
-  "¡Tu generosidad es increíble! ¡Gracias! 💫",
-  "¡Gracias por ese detallazo! 🤩",
-  "¡Ese regalo me ha subido el stream de nivel! ¡Gracias! 🚀",
-  "¡Estás echando la casa por la ventana! ¡Gracias! 🎉",
-  "¿De dónde sacas tanto dinero? ¡Gracias por el regalo, Bro! 💰",
-  "¡Ojalá se me pegara un poco de tu generosidad! ¡Gracias! 😂",
-  "¡Gracias por ese regalo! ¡Con esto nos compramos la cena! 🍔",
-];
+  <style>
+    :root{ --card-bg: rgba(255,255,255,.08); --card-border: rgba(255,255,255,.10); --txt: rgba(255,255,255,.95); --shadow: 0 10px 30px rgba(0,0,0,.25); }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;background:#000;color:var(--txt);font-family: Roboto, system-ui, -apple-system, Segoe UI, Arial, sans-serif;}
+    .app{position:relative;width:100vw;height:100vh;overflow:hidden;user-select:none}
 
-const SUB_MESSAGES = [
-  "¡Bienvenido a la familia! 💖",
-  "¡El team SnchzBroz crece! ¡Bienvenido! 🥳",
-  "¡Gracias por unirte a la familia! 🥰",
-  "¡Un nuevo miembro en la SnchzBroz-familia! 💖",
-  "¡Bienvenido al club! 😎",
-  "¡Ahora eres parte de los Bros! ¡Gracias! 🎉",
-  "¡Te has unido a los Bros de verdad! ¡Bienvenido! 😎",
-  "¡Bienvenido al club! ¡Ahora no hay marcha atrás! 😜",
-  "¡Por fin has caído! ¡Bienvenido a la familia SnchzBroz! 💖",
-  "¡Gracias por tu sub! ¡Ahora eres parte de la secta! 😈",
-  "¡Te has ganado mi respeto! ¡Bienvenido a la familia! 🥂",
-];
+    /* Fondo video */
+    .bg{position:absolute;inset:0;z-index:-1;}
+    .bg video{width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .5s ease}
+    .bg video.ready{opacity:1}
+    .bg .vignette{position:absolute;inset:0;background:linear-gradient(to bottom, rgba(0,0,0,.30), rgba(0,0,0,.10), rgba(0,0,0,.60));pointer-events:none}
 
-// === NeonFrame con variantes de color ===
-const NeonFrame = memo(function NeonFrame({ children, className = "", variant = "default" }) {
-  const gradients = {
-    // Para redes sociales (verde/azul)
-    default:
-      "conic-gradient(from 0deg, rgba(0,255,128,.85), rgba(0,128,255,.85), rgba(0,255,128,.85))",
-    // Para tarjetas superiores (morado/fucsia)
-    topCards:
-      "conic-gradient(from 0deg, rgba(255,0,255,.85), rgba(138,43,226,.85), rgba(255,0,255,.85))",
-  };
+    /* Like Fountain encima de todo (no bloquea clicks) */
+    .like-fountain{position:absolute;inset:0;z-index:50;pointer-events:none}
+    .like-fountain iframe{width:100%;height:100%;border:0}
 
-  return (
-    <div className={`relative rounded-xl overflow-hidden ${className}`} style={{ isolation: "isolate" }}>
-      {/* Glow externo vistoso (recortado por overflow-hidden) */}
-      <div
-        aria-hidden
-        className="absolute -inset-1 rounded-[inherit] blur-xl opacity-80 pointer-events-none"
-        style={{ background: gradients[variant] || gradients.default, animation: "glowPulse 4.5s ease-in-out infinite" }}
-      />
-      {/* Contenido con UN solo borde sutil */}
-      <div className="relative rounded-[inherit] bg-white/8 border border-white/10 shadow-lg flex items-center justify-center">
-        {children}
-      </div>
+    /* Tarjetas superiores - fila */
+    .top-row{position:absolute;top:24px;left:24px;right:24px;display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+
+    /* Marco neón (cada tarjeta con su glow propio) */
+    .neon{position:relative;border-radius:16px;overflow:hidden;isolation:isolate;}
+    .neon::before{
+      content:"";position:absolute;inset:-6px;border-radius:inherit;filter:blur(18px);opacity:.9;z-index:0;pointer-events:none;
+      animation:glowPulse 4.5s ease-in-out infinite;
+    }
+    .card-surface{position:relative;border-radius:inherit;background:var(--card-bg);border:1px solid var(--card-border);box-shadow:var(--shadow);}
+    .neon-top::before{background: conic-gradient(from 0deg, rgba(255,0,255,.85), rgba(138,43,226,.85), rgba(255,0,255,.85));}
+    .neon-greenblue::before{background: conic-gradient(from 0deg, rgba(0,255,128,.85), rgba(0,128,255,.85), rgba(0,255,128,.85));}
+    @keyframes glowPulse{0%,100%{opacity:.45}50%{opacity:.9}}
+
+    /* Tarjeta superior contenido */
+    .top-card-inner{position:relative;display:flex;align-items:center;justify-content:center;height:96px;padding:8px}
+    .top-title{
+      position:absolute;top:6px;left:8px;z-index:2;font-weight:900;font-size:14px;letter-spacing:.2px;color:rgba(255,255,255,.92);
+      text-shadow: 1px 1px 2px rgba(0,0,0,.9), -1px -1px 2px rgba(0,0,0,.9);
+      pointer-events:none;user-select:none;
+    }
+    .badge{
+      position:absolute;right:8px;bottom:6px;z-index:2;background: rgba(0,0,0,.55);color:var(--txt);border-radius:10px;font-weight:700;
+      padding:6px 10px;font-size:13px;letter-spacing:.2px;white-space:nowrap;
+      box-shadow:0 0 0 1px rgba(255,255,255,.15), 0 6px 16px rgba(0,0,0,.35);
+    }
+    .badge::before{
+      content:"";position:absolute;inset:0;border-radius:inherit;padding:1px;
+      -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+      -webkit-mask-composite:xor;mask-composite:exclude;
+      filter:drop-shadow(0 0 10px rgba(255,255,255,.25));
+      animation:badgeGlow 2.8s ease-in-out infinite;
+    }
+    .badge.follower::before{background:linear-gradient(90deg,#00ff80,#0080ff)}
+    .badge.gift::before{background:linear-gradient(90deg,#ffd700,#ff8c00)}
+    .badge.sub::before{background:linear-gradient(90deg,#ff00ff,#8a2be2)}
+    @keyframes badgeGlow{0%,100%{opacity:.85}50%{opacity:1}}
+
+    .top-card-inner iframe{width:100%;height:100%;border:0;border-radius:12px}
+
+    /* Logo central y widget de alertas */
+    .center-wrap{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;margin-top:4vh;}
+    .logo-box{position:relative;width:min(44vw,820px);filter:drop-shadow(0 0 28px rgba(0,255,255,.28));animation:logoPulse 7s ease-in-out infinite;}
+    .logo-box img{width:100%;height:auto;display:block;pointer-events:none;-webkit-user-drag:none}
+    .logo-box .actions{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;}
+    .logo-box .actions iframe{width:96%;height:80%;border:0}
+    @keyframes logoPulse{0%,100%{transform:scale(1) translateY(0)}25%{transform:scale(1.05) translateY(-6px)}50%{transform:scale(1.08) translateY(0)}75%{transform:scale(1.05) translateY(6px)}}
+
+    /* Carrusel redes (derecha->izquierda) */
+    .socials{position:absolute;left:50%;bottom:20px;transform:translateX(-50%);width:92vw;max-width:1600px;z-index:40}
+    .track{display:flex;gap:16px;animation:marqueeXRtl 30s linear infinite;will-change:transform}
+    @keyframes marqueeXRtl{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+    .social-item{min-width:260px}
+    .social-card{display:flex;align-items:center;justify-content:center;gap:16px;padding:12px 20px;border-radius:16px;background:var(--card-bg);border:1px solid var(--card-border)}
+    .social-card img{width:48px;height:48px;object-fit:contain;filter:drop-shadow(0 2px 6px rgba(0,0,0,.35))}
+    .social-handle{font-weight:900;font-size:28px;letter-spacing:.3px}
+
+    /* Responsivo */
+    @media (max-width:1024px){
+      .top-row{grid-template-columns:1fr;gap:12px}
+      .logo-box{width:70vw}
+      .social-item{min-width:220px}
+      .social-handle{font-size:22px}
+    }
+  </style>
+</head>
+<body>
+  <div class="app" id="app">
+    <!-- Like Fountain -->
+    <div class="like-fountain">
+      <iframe src="https://tikfinity.zerody.one/widget/likefountain?cid=615689" allow="autoplay" title="Like Fountain"></iframe>
     </div>
-  );
-});
 
-// === Datos de redes (icono + handle) ===
-const SOCIALS = [
-  { img: "https://cdn-icons-png.flaticon.com/128/3046/3046121.png", handle: "@snchzbroz" }, // TikTok
-  { img: "https://cdn-icons-png.flaticon.com/128/174/174855.png", handle: "@snchzbroz" }, // Instagram
-  { img: "https://cdn-icons-png.flaticon.com/128/5969/5969020.png", handle: "@twittalien" }, // X/Twitter
-  { img: "https://cdn-icons-png.flaticon.com/128/1384/1384060.png", handle: "snchzbroz" }, // YouTube
-  { img: "https://cdn-icons-png.flaticon.com/128/15713/15713413.png", handle: "snchzbroz" }, // Twitch
-  { img: "https://cdn-icons-png.flaticon.com/128/906/906325.png", handle: "snchzbroz" }, // Xbox
-  { img: "https://cdn-icons-png.flaticon.com/128/6646/6646449.png", handle: "snchzbroz" }, // Fortnite
-  { img: "https://cdn-icons-png.flaticon.com/128/871/871377.png", handle: "snchzbroz" }, // Nintendo
-  { img: "https://cdn-icons-png.flaticon.com/128/15069/15069134.png", handle: "snchzbroz" }, // Roblox
-];
-
-// === Item de carrusel (logo + texto Roboto grande) ===
-const SocialItem = memo(function SocialItem({ item }) {
-  return (
-    <div className="min-w-[260px]">
-      <NeonFrame>
-        <div className="flex flex-row items-center justify-center gap-4 px-5 py-3 rounded-xl bg-white/10 border border-white/10 font-roboto">
-          <img src={item.img} alt="icon" className="h-12 w-12 object-contain drop-shadow" loading="lazy" referrerPolicy="no-referrer" />
-          <span className="text-white/95 text-3xl tracking-wide">{item.handle}</span>
-        </div>
-      </NeonFrame>
+    <!-- Fondo video -->
+    <div class="bg">
+      <video id="bgVideo" autoplay muted loop playsinline
+        poster="https://raw.githubusercontent.com/SnchzBroz/SnchzBroz/main/Nuevo%20Logo.png">
+        <source src="https://raw.githubusercontent.com/SnchzBroz/SnchzBroz/main/Nuevo%20Azul.mp4" type="video/mp4" />
+      </video>
+      <div class="vignette"></div>
     </div>
-  );
-});
 
-// === Carrusel continuo derecha → izquierda ===
-function SocialCarousel() {
-  const items = [...SOCIALS, ...SOCIALS]; // duplicado para loop
-  return (
-    <div className="relative overflow-hidden w-full">
-      <div className="flex gap-6 animate-marqueeXRtl will-change-transform">
-        {items.map((s, i) => (
-          <SocialItem item={s} key={`${s.handle}-${i}`} />
-        ))}
-      </div>
-      <style>{`
-        @keyframes marqueeXRtl { 0% { transform: translateX(0%); } 100% { transform: translateX(-50%); } }
-        .animate-marqueeXRtl { animation: marqueeXRtl 30s linear infinite; }
-        @keyframes glowPulse { 0%,100% { opacity:.45 } 50% { opacity:.9 } }
-      `}</style>
-    </div>
-  );
-}
-
-// === Badge aleatorio con brillo y color por tarjeta ===
-function RandomBadge({ messages, variant, position = "bottom-right" }) {
-  const [text, setText] = useState("");
-  useEffect(() => {
-    const pick = () => messages[Math.floor(Math.random() * messages.length)];
-    setText(pick());
-    const id = setInterval(() => setText(pick()), 5 * 60 * 1000); // cada 5 minutos
-    return () => clearInterval(id);
-  }, [messages]);
-
-  const gradientByVariant = {
-    follower: "linear-gradient(90deg, #00ff80, #0080ff)",
-    gift: "linear-gradient(90deg, #ffd700, #ff8c00)",
-    sub: "linear-gradient(90deg, #ff00ff, #8a2be2)",
-  };
-
-  const posClass = position === "bottom-right" ? "bottom-1.5 right-2" : "top-1.5 left-2";
-
-  return (
-    <div className={`absolute ${posClass} z-10`}>
-      <div
-        className="relative px-3 py-1 rounded-lg text-white/95 text-[13px] md:text-sm font-semibold tracking-wide shadow"
-        style={{ background: "rgba(0,0,0,0.55)" }}
-      >
-        {/* Borde con glow animado */}
-        <span
-          aria-hidden
-          className="pointer-events-none absolute inset-0 rounded-[inherit]"
-          style={{
-            padding: 1,
-            background: gradientByVariant[variant] || gradientByVariant.follower,
-            WebkitMask: "linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)",
-            WebkitMaskComposite: "xor",
-            maskComposite: "exclude",
-            filter: "drop-shadow(0 0 10px rgba(255,255,255,0.25))",
-            animation: "badgeGlow 2.8s ease-in-out infinite",
-          }}
-        />
-        <span className="relative z-10 whitespace-nowrap">{text}</span>
-      </div>
-      <style>{`
-        @keyframes badgeGlow { 0%,100% { opacity:.85 } 50% { opacity:1 } }
-      `}</style>
-    </div>
-  );
-}
-
-// === Tarjeta superior con iframe + título fijo (arriba izq con halo) + badge dinámico (abajo der) ===
-function TopCard({ src, title, messages, badgeVariant }) {
-  return (
-    <NeonFrame variant="topCards" className="p-2 relative">
-      {/* Texto fijo arriba izquierda con halo/contorno para legibilidad */}
-      <div
-        className="absolute top-1.5 left-2 z-10 text-white/90 text-sm font-bold select-none"
-        style={{ textShadow: "1px 1px 2px rgba(0,0,0,0.9), -1px -1px 2px rgba(0,0,0,0.9)" }}
-      >
-        {title}
-      </div>
-      {/* Texto dinámico abajo derecha */}
-      <RandomBadge messages={messages} variant={badgeVariant} position="bottom-right" />
-      <iframe src={src} title={title} className="w-full" style={{ height: 96 }} frameBorder={0} loading="lazy" />
-    </NeonFrame>
-  );
-}
-
-// === App principal ===
-export default function StreamBackdropApp() {
-  const videoSupported = useMemo(() => typeof window !== "undefined", []);
-  const [videoReady, setVideoReady] = useState(false);
-  const [mountMainIframe, setMountMainIframe] = useState(false);
-  const [mountTopIframes, setMountTopIframes] = useState(false);
-
-  // Montaje diferido de iframes para acelerar la carga
-  useEffect(() => {
-    const t1 = setTimeout(() => setMountMainIframe(true), 300);
-    const t2 = setTimeout(() => setMountTopIframes(true), 700);
-    return () => { clearTimeout(t1); clearTimeout(t2); };
-  }, []);
-
-  return (
-    <div className="relative w-screen h-screen overflow-hidden select-none">
-      {/* Like Fountain encima de todo */}
-      <div className="absolute top-0 left-0 w-full h-full pointer-events-none z-50">
-        <iframe src={WIDGETS.likeFountain} title="Like Fountain" className="w-full h-full" frameBorder={0} allow="autoplay" />
-      </div>
-
-      {/* Video de fondo */}
-      <div className="absolute inset-0 -z-10">
-        {videoSupported ? (
-          <video
-            className={`h-full w-full object-cover transition-opacity duration-500 ${videoReady ? "opacity-100" : "opacity-0"}`}
-            src={ASSETS.backgroundVideo}
-            autoPlay
-            muted
-            loop
-            playsInline
-            onCanPlay={() => setVideoReady(true)}
-            poster={ASSETS.poster}
-            preload="metadata"
-          />
-        ) : (
-          <div className="h-full w-full bg-gradient-to-br from-indigo-900 via-purple-900 to-slate-900" />
-        )}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/10 to-black/60 pointer-events-none" />
-      </div>
-
-      {/* Tarjetas superiores (morado/fucsia) */}
-      <div className="absolute top-6 left-6 right-6 grid grid-cols-3 gap-4">
-        {mountTopIframes && (
-          <>
-            <TopCard src={WIDGETS.lastFollower} title="Último Seguidor" messages={FOLLOWER_MESSAGES} badgeVariant="follower" />
-            <TopCard src={WIDGETS.lastGifter} title="Último Regalo" messages={GIFT_MESSAGES} badgeVariant="gift" />
-            <TopCard src={WIDGETS.lastSubscriber} title="Último Suscriptor" messages={SUB_MESSAGES} badgeVariant="sub" />
-          </>
-        )}
-      </div>
-
-      {/* Logo centrado (ligeramente más arriba) y widget de alertas grande SIN marco/fondo */}
-      <div className="absolute inset-0 flex items-center justify-center mt-[4vh]">
-        <div className="relative w-[44vw] max-w-[820px] drop-shadow-[0_0_28px_rgba(0,255,255,0.28)] animate-logoPulse">
-          <img src={ASSETS.logo} alt="Canal" className="relative w-full h-auto select-none pointer-events-none" draggable={false} decoding="async" fetchpriority="high" />
-          {mountMainIframe && (
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <iframe src={WIDGETS.actions} title="Notificaciones" className="w-[96%] h-[80%]" frameBorder={0} allow="autoplay" loading="lazy" />
-            </div>
-          )}
+    <!-- Tarjetas superiores -->
+    <div class="top-row">
+      <div class="neon neon-top">
+        <div class="card-surface top-card-inner">
+          <div class="top-title">Último Seguidor</div>
+          <div id="badge-follower" class="badge follower"></div>
+          <iframe src="https://tikfinity.zerody.one/widget/lastx?cid=615689&x=follower" title="Último seguidor" loading="lazy"></iframe>
         </div>
       </div>
-
-      {/* Carrusel de redes (verde/azul) */}
-      <div className="absolute bottom-5 left-1/2 -translate-x-1/2 w-[92vw] max-w-[1600px] z-40">
-        <SocialCarousel />
+      <div class="neon neon-top">
+        <div class="card-surface top-card-inner">
+          <div class="top-title">Último Regalo</div>
+          <div id="badge-gift" class="badge gift"></div>
+          <iframe src="https://tikfinity.zerody.one/widget/lastx?cid=615689&x=gifter" title="Último regalo" loading="lazy"></iframe>
+        </div>
       </div>
-
-      {/* Estilos globales */}
-      <style>{`
-        @keyframes logoPulse { 0%, 100% { transform: scale(1) translateY(0); } 25% { transform: scale(1.05) translateY(-6px); } 50% { transform: scale(1.08) translateY(0); } 75% { transform: scale(1.05) translateY(6px); } }
-        .animate-logoPulse { animation: logoPulse 7s ease-in-out infinite; }
-        .font-roboto { font-family: 'Roboto', system-ui, -apple-system, Segoe UI, Arial, sans-serif; }
-        @keyframes glowPulse { 0%,100% { opacity:.45 } 50% { opacity:.9 } }
-      `}</style>
+      <div class="neon neon-top">
+        <div class="card-surface top-card-inner">
+          <div class="top-title">Último Suscriptor</div>
+          <div id="badge-sub" class="badge sub"></div>
+          <iframe src="https://tikfinity.zerody.one/widget/lastx?cid=615689&x=subscriber" title="Último suscriptor" loading="lazy"></iframe>
+        </div>
+      </div>
     </div>
-  );
-}
+
+    <!-- Logo + acciones -->
+    <div class="center-wrap">
+      <div class="logo-box">
+        <img src="https://raw.githubusercontent.com/SnchzBroz/SnchzBroz/main/Nuevo%20Logo.png" alt="SnchzBroz" />
+        <div class="actions">
+          <iframe src="https://tikfinity.zerody.one/widget/myactions?cid=615689&screen=1" allow="autoplay" title="Notificaciones" loading="lazy"></iframe>
+        </div>
+      </div>
+    </div>
+
+    <!-- Carrusel redes sociales -->
+    <div class="socials">
+      <div class="track">
+        <div class="track-inner" style="display:flex;gap:16px">
+          <div class="social-item"><div class="neon neon-greenblue"><div class="card-surface social-card"><img src="https://cdn-icons-png.flaticon.com/128/3046/3046121.png" alt="TikTok"><div class="social-handle">@snchzbroz</div></div></div></div>
+          <div class="social-item"><div class="neon neon-greenblue"><div class="card-surface social-card"><img src="https://cdn-icons-png.flaticon.com/128/174/174855.png" alt="Instagram"><div class="social-handle">@snchzbroz</div></div></div></div>
+          <div class="social-item"><div class="neon neon-greenblue"><div class="card-surface social-card"><img src="https://cdn-icons-png.flaticon.com/128/5969/5969020.png" alt="X/Twitter"><div class="social-handle">@twittalien</div></div></div></div>
+          <div class="social-item"><div class="neon neon-greenblue"><div class="card-surface social-card"><img src="https://cdn-icons-png.flaticon.com/128/1384/1384060.png" alt="YouTube"><div class="social-handle">snchzbroz</div></div></div></div>
+          <div class="social-item"><div class="neon neon-greenblue"><div class="card-surface social-card"><img src="https://cdn-icons-png.flaticon.com/128/15713/15713413.png" alt="Twitch"><div class="social-handle">snchzbroz</div></div></div></div>
+          <div class="social-item"><div class="neon neon-greenblue"><div class="card-surface social-card"><img src="https://cdn-icons-png.flaticon.com/128/906/906325.png" alt="Xbox"><div class="social-handle">snchzbroz</div></div></div></div>
+          <div class="social-item"><div class="neon neon-greenblue"><div class="card-surface social-card"><img src="https://cdn-icons-png.flaticon.com/128/6646/6646449.png" alt="Fortnite"><div class="social-handle">snchzbroz</div></div></div></div>
+          <div class="social-item"><div class="neon neon-greenblue"><div class="card-surface social-card"><img src="https://cdn-icons-png.flaticon.com/128/871/871377.png" alt="Nintendo"><div class="social-handle">snchzbroz</div></div></div></div>
+          <div class="social-item"><div class="neon neon-greenblue"><div class="card-surface social-card"><img src="https://cdn-icons-png.flaticon.com/128/15069/15069134.png" alt="Roblox"><div class="social-handle">snchzbroz</div></div></div></div>
+        </div>
+        <div class="track-inner" style="display:flex;gap:16px">
+          <div class="social-item"><div class="neon neon-greenblue"><div class="card-surface social-card"><img src="https://cdn-icons-png.flaticon.com/128/3046/3046121.png" alt="TikTok"><div class="social-handle">@snchzbroz</div></div></div></div>
+          <div class="social-item"><div class="neon neon-greenblue"><div class="card-surface social-card"><img src="https://cdn-icons-png.flaticon.com/128/174/174855.png" alt="Instagram"><div class="social-handle">@snchzbroz</div></div></div></div>
+          <div class="social-item"><div class="neon neon-greenblue"><div class="card-surface social-card"><img src="https://cdn-icons-png.flaticon.com/128/5969/5969020.png" alt="X/Twitter"><div class="social-handle">@twittalien</div></div></div></div>
+          <div class="social-item"><div class="neon neon-greenblue"><div class="card-surface social-card"><img src="https://cdn-icons-png.flaticon.com/128/1384/1384060.png" alt="YouTube"><div class="social-handle">snchzbroz</div></div></div></div>
+          <div class="social-item"><div class="neon neon-greenblue"><div class="card-surface social-card"><img src="https://cdn-icons-png.flaticon.com/128/15713/15713413.png" alt="Twitch"><div class="social-handle">snchzbroz</div></div></div></div>
+          <div class="social-item"><div class="neon neon-greenblue"><div class="card-surface social-card"><img src="https://cdn-icons-png.flaticon.com/128/906/906325.png" alt="Xbox"><div class="social-handle">snchzbroz</div></div></div></div>
+          <div class="social-item"><div class="neon neon-greenblue"><div class="card-surface social-card"><img src="https://cdn-icons-png.flaticon.com/128/6646/6646449.png" alt="Fortnite"><div class="social-handle">snchzbroz</div></div></div></div>
+          <div class="social-item"><div class="neon neon-greenblue"><div class="card-surface social-card"><img src="https://cdn-icons-png.flaticon.com/128/871/871377.png" alt="Nintendo"><div class="social-handle">snchzbroz</div></div></div></div>
+          <div class="social-item"><div class="neon neon-greenblue"><div class="card-surface social-card"><img src="https://cdn-icons-png.flaticon.com/128/15069/15069134.png" alt="Roblox"><div class="social-handle">snchzbroz</div></div></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Video: marcar 'ready' al poder reproducirse
+    const bg = document.getElementById('bgVideo');
+    bg?.addEventListener('canplay', ()=> bg.classList.add('ready'));
+
+    // Mensajes dinámicos cada 5 minutos
+    const FOLLOWER_MESSAGES = [
+      "¡El nuevo Bro! 🤩","¡Nuevo Bro en la casa! 🎉","¡Gracias por unirte al desmadre! 🙌","¡Bienvenid@ al team, Bro! 😎",
+      "¡Un Bro más en el canal! 🥳","¡Ahora somos más Bros! 🔥","¡Nuevo Bro! ¡Qué locura! 🤯","¡Un Bro más a la cuenta! ✅",
+      "¡Ahora eres un Bro de élite! 😎","¡Un nuevo Bro ha aparecido! 👾","¡Ahora si somos más fuertes! 💪",
+    ];
+    const GIFT_MESSAGES = [
+      "¡Gracias por tu Oro! 🎁","¡Oro en la casa! ¡Gracias por el apoyo! 🙏","¡Qué buen regalo, muchas gracias! 🙏","¡Me has dejado sin palabras! ¡Gracias! 💖",
+      "¡Tu generosidad es increíble! ¡Gracias! 💫","¡Gracias por ese detallazo! 🤩","¡Ese regalo me ha subido el stream de nivel! ¡Gracias! 🚀",
+      "¡Estás echando la casa por la ventana! ¡Gracias! 🎉","¿De dónde sacas tanto dinero? ¡Gracias por el regalo, Bro! 💰",
+      "¡Ojalá se me pegara un poco de tu generosidad! ¡Gracias! 😂","¡Gracias por ese regalo! ¡Con esto nos compramos la cena! 🍔",
+    ];
+    const SUB_MESSAGES = [
+      "¡Bienvenido a la familia! 💖","¡El team SnchzBroz crece! ¡Bienvenido! 🥳","¡Gracias por unirte a la familia! 🥰","¡Un nuevo miembro en la SnchzBroz-familia! 💖",
+      "¡Bienvenido al club! 😎","¡Ahora eres parte de los Bros! ¡Gracias! 🎉","¡Te has unido a los Bros de verdad! ¡Bienvenido! 😎",
+      "¡Bienvenido al club! ¡Ahora no hay marcha atrás! 😜","¡Por fin has caído! ¡Bienvenido a la familia SnchzBroz! 💖",
+      "¡Gracias por tu sub! ¡Ahora eres parte de la secta! 😈","¡Te has ganado mi respeto! ¡Bienvenido a la familia! 🥂",
+    ];
+    function rotateBadge(el, list){
+      function pick(){ return list[Math.floor(Math.random()*list.length)]; }
+      el.textContent = pick();
+      setInterval(()=> el.textContent = pick(), 5*60*1000);
+    }
+    rotateBadge(document.getElementById('badge-follower'), FOLLOWER_MESSAGES);
+    rotateBadge(document.getElementById('badge-gift'), GIFT_MESSAGES);
+    rotateBadge(document.getElementById('badge-sub'), SUB_MESSAGES);
+
+    // Registrar service worker para PWA (si es soportado)
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(()=>{});
+      });
+    }
+  </script>
+</body>
+</html>
